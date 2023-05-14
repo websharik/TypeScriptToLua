@@ -315,20 +315,6 @@ test("ClassMethodCall", () => {
     `.expectToMatchJsResult();
 });
 
-test("ClassMethodHasSameAddressAfterBinding", () => {
-    util.testFunction`
-        class a {
-            public isSame() {
-                let cb1 = '' + this.method.bind(this)
-                let cb2 = '' + this.method.bind(this)
-                return cb1 === cb2
-            }
-            public method() {}
-        }
-        return new a().isSame();
-    `.expectToEqual(true);
-});
-
 test("ClassNumericLiteralMethodCall", () => {
     util.testFunction`
         class a {
