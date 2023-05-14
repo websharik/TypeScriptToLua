@@ -1,11 +1,7 @@
 import * as ts from "typescript";
 import { getOrUpdate } from "../../utils";
 import { TransformationContext } from "../context";
-import {
-    unsupportedNoSelfFunctionConversion,
-    unsupportedOverloadAssignment,
-    unsupportedSelfFunctionConversion,
-} from "./diagnostics";
+import { unsupportedOverloadAssignment } from "./diagnostics";
 import { ContextType, getFunctionContextType } from "./function-context";
 
 // TODO: Clear if types are reused between compilations
@@ -102,10 +98,10 @@ function validateFunctionAssignment(
     if (fromContext === ContextType.Mixed || toContext === ContextType.Mixed) {
         context.diagnostics.push(unsupportedOverloadAssignment(node, toName));
     } else if (fromContext !== toContext && fromContext !== ContextType.None && toContext !== ContextType.None) {
-        context.diagnostics.push(
+        /* context.diagnostics.push(
             toContext === ContextType.Void
                 ? unsupportedNoSelfFunctionConversion(node, toName)
                 : unsupportedSelfFunctionConversion(node, toName)
-        );
+        ); */
     }
 }
