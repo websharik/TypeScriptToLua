@@ -315,6 +315,42 @@ test("ClassMethodCall", () => {
     `.expectToMatchJsResult();
 });
 
+test("ClassMethodHasSameAddressAfterWrap", () => {
+    util.testFunction`
+        const subscribers = []
+        function subscribe(this: void, cb: (this: void, ...args: any) => any): void {
+            subscribers.push('' + cb)
+        }
+        class a {
+            b() {}
+            do() {
+                subscribe(this.b)
+                subscribe(this.b)
+            }
+        }
+        new a().do();
+        return subscribers[0] === subscribers[1];
+    `.expectToEqual(true);
+});
+
+test("ClassMethodAsCallbackReturnRightArguments", () => {
+    util.testFunction`
+        function caller(this: void, fn: (this: void, ...args: any) => any, n: number) {
+            return fn('key', 'val', n);
+        }
+        class a {
+            i = 100
+            public b() {
+                return caller(this.c, 99);
+            }
+            c(...args) {
+                return [...args, this.i];
+            }
+        }
+        return new a().b();
+    `.expectToEqual(["key", "val", 99, 100]);
+});
+
 test("ClassNumericLiteralMethodCall", () => {
     util.testFunction`
         class a {

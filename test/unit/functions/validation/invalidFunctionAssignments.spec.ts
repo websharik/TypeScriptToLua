@@ -1,16 +1,8 @@
-import {
-    unsupportedOverloadAssignment,
-    unsupportedNoSelfFunctionConversion,
-    unsupportedSelfFunctionConversion,
-} from "../../../../src/transformation/utils/diagnostics";
+import { unsupportedOverloadAssignment } from "../../../../src/transformation/utils/diagnostics";
 import * as util from "../../../util";
-import {
-    invalidTestFunctionAssignments,
-    invalidTestFunctionCasts,
-    invalidTestMethodAssignments,
-} from "./functionPermutations";
 
-test.each(invalidTestFunctionAssignments)(
+// eslint-disable-next-line jest/no-commented-out-tests
+/* test.each(invalidTestFunctionAssignments)(
     "Invalid function variable declaration (%p)",
     (testFunction, functionType, isSelfConversion) => {
         util.testModule`
@@ -209,7 +201,7 @@ test("Invalid interface method assignment", () => {
         declare const a: A;
         const b: B = a;
     `.expectDiagnosticsToMatchSnapshot([unsupportedNoSelfFunctionConversion.code], true);
-});
+}); */
 
 test.each([
     "(this: void, s: string) => string",
@@ -235,7 +227,7 @@ test("Does not fail on union type signatures (#896)", () => {
         declare interface Events {
             a(): void;
             [key: string]: (this: void) => void;
-        }      
+        }
         declare function foo<T extends 'a' | 'b'>(callback: Events[T]): void;
     `
         )

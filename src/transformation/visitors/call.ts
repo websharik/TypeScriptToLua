@@ -41,7 +41,7 @@ export function transformArguments(
     callContext?: ts.Expression
 ): lua.Expression[] {
     validateArguments(context, params, signature);
-    return transformExpressionList(context, callContext ? [callContext, ...params] : params);
+    return transformExpressionList(context, callContext ? [callContext, ...params] : params, signature);
 }
 
 function transformCallWithArguments(

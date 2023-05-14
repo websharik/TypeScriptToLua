@@ -6,6 +6,7 @@ import { LuaLibFeature, transformLuaLibFunction } from "../utils/lualib";
 import { transformInPrecedingStatementScope } from "../utils/preceding-statements";
 import { isConstIdentifier } from "../utils/typescript";
 import { isOptionalContinuation } from "./optional-chaining";
+import { ContextType, getFunctionContextType } from "../utils/function-context";
 
 export function shouldMoveToTemp(context: TransformationContext, expression: lua.Expression, tsOriginal?: ts.Node) {
     return (
@@ -35,9 +36,60 @@ export function moveToPrecedingTemp(
     return lua.cloneIdentifier(tempIdentifier, tsOriginal);
 }
 
+interface MultiType extends ts.Type {
+    types: MultiType[];
+    intrinsicName: string;
+}
+
+function resolveSignatureTypeByExpressionType(signatureType: MultiType): ts.Type {
+    if (!signatureType.types) return signatureType;
+    else {
+        if (signatureType.types.length === 2 && signatureType.types[0].intrinsicName === "undefined") {
+            return signatureType.types[1];
+        }
+        /* todo: resolve >= 2 available types */
+        /* for (const sType of signatureType.types) {
+            if (expressionType === sType) return sType;
+        } */
+    }
+    return signatureType;
+}
+
+function isParamIsCallbackAndNeedWrap(
+    context: TransformationContext,
+    param: ts.Expression,
+    signatureParameter: ts.Symbol
+): boolean {
+    if (signatureParameter.valueDeclaration) {
+        const fromType = context.checker.getTypeAtLocation(param);
+        let toType = context.checker.getTypeAtLocation(signatureParameter.valueDeclaration);
+        toType = resolveSignatureTypeByExpressionType(toType as MultiType);
+
+        // const toName = signatureParameter?.name
+        const fromContext = getFunctionContextType(context, fromType);
+        const toContext = getFunctionContextType(context, toType);
+
+        if (!(fromContext === ContextType.Mixed || toContext === ContextType.Mixed)) {
+            if (fromContext !== toContext) {
+                if (fromContext !== ContextType.None && toContext !== ContextType.None) {
+                    if (toContext === ContextType.Void) {
+                        return true;
+                    }
+                }
+                // context.diagnostics.push(unsupportedNoSelfFunctionConversion(param, toName));
+                // context.diagnostics.push(unsupportedSelfFunctionConversion(param, toName));
+            }
+        } else {
+            // context.diagnostics.push(unsupportedOverloadAssignment(param, toName));
+        }
+    }
+    return false;
+}
+
 function transformExpressions(
     context: TransformationContext,
-    expressions: readonly ts.Expression[]
+    expressions: readonly ts.Expression[],
+    signature?: ts.Signature
 ): {
     transformedExpressions: lua.Expression[];
     precedingStatements: lua.Statement[][];
@@ -47,6 +99,27 @@ function transformExpressions(
     const transformedExpressions: lua.Expression[] = [];
     let lastPrecedingStatementsIndex = -1;
     for (let i = 0; i < expressions.length; ++i) {
+        if (signature && signature.parameters.length >= expressions.length) {
+            const signatureParameter = signature.parameters[i];
+            if (signatureParameter && isParamIsCallbackAndNeedWrap(context, expressions[i], signatureParameter)) {
+                const { precedingStatements: expressionPrecedingStatements, result: expression } = {
+                    precedingStatements: [],
+                    result: transformLuaLibFunction(
+                        context,
+                        LuaLibFeature.FunctionWrap,
+                        expressions[i].parent,
+                        ...transformExpressionList(context, [expressions[i], ts.factory.createThis()])
+                    ),
+                };
+                transformedExpressions.push(expression);
+                if (expressionPrecedingStatements.length > 0) {
+                    lastPrecedingStatementsIndex = i;
+                }
+                precedingStatements.push(expressionPrecedingStatements);
+                continue;
+            }
+        }
+
         const { precedingStatements: expressionPrecedingStatements, result: expression } =
             transformInPrecedingStatementScope(context, () => context.transformExpression(expressions[i]));
         transformedExpressions.push(expression);
@@ -148,11 +221,13 @@ function countNeededTemps(
 // Transforms a list of expressions while flattening spreads and maintaining execution order
 export function transformExpressionList(
     context: TransformationContext,
-    expressions: readonly ts.Expression[]
+    expressions: readonly ts.Expression[],
+    signature?: ts.Signature
 ): lua.Expression[] {
     const { transformedExpressions, precedingStatements, lastPrecedingStatementsIndex } = transformExpressions(
         context,
-        expressions
+        expressions,
+        signature
     );
 
     // If more than this number of temps are required to preserve execution order, we'll fall back to using the

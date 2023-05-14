@@ -43,6 +43,7 @@ export enum LuaLibFeature {
     DelegatedYield = "DelegatedYield",
     Error = "Error",
     FunctionBind = "FunctionBind",
+    FunctionWrap = "FunctionWrap",
     Generator = "Generator",
     InstanceOf = "InstanceOf",
     InstanceOfObject = "InstanceOfObject",
